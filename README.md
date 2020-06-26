@@ -1,0 +1,1 @@
+This is an optimized wordpress plugin for a basic blog website

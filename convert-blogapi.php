@@ -103,15 +103,15 @@ function singlePost($data){
 		$postRelated = $wpdb->get_results($CatSql);
 
 
+
 		array_push($posts, $v);
-		array_push($relatedPost, $postRelated);
 		array_push($category, get_the_category( $v->id )[0]->name );
 		array_push($feturedimg, wp_get_attachment_url( get_post_thumbnail_id($v->id) ));
 		
 
 
 
-		$res[$i] = array_merge(['relatedPost' => $relatedPost],['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i], 
+		$res[$i] = array_merge(['relatedPost' => $postRelated],['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i], 
 	]);
 
 	}

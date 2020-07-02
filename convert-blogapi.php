@@ -73,6 +73,9 @@ function singlePost($data){
 	$author = [];
 
 	$count_pages = wp_count_posts( $post_type = 'post' );
+
+	$uploadDir = wp_upload_dir();
+	$uploadDir = $uploadDir['baseurl'];
 	
 	$sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
 	FROM $wpdb->posts
@@ -88,10 +91,14 @@ function singlePost($data){
 		$catId = get_the_category( $v->id )[0]->cat_ID;
 
 
-		$CatSql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
+		$CatSql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`, CONCAT('$uploadDir',`meta_value`) as image
+
+
 			FROM $wpdb->posts
-			LEFT JOIN wp_term_relationships ON($wpdb->posts.`ID` = $wpdb->term_relationships.`object_id`)
-			LEFT JOIN wp_term_taxonomy ON($wpdb->term_relationships.`term_taxonomy_id` = $wpdb->term_taxonomy.`term_taxonomy_id`)
+			LEFT JOIN $wpdb->term_relationships ON($wpdb->posts.`ID` = $wpdb->term_relationships.`object_id`)
+			LEFT JOIN $wpdb->term_taxonomy ON($wpdb->term_relationships.`term_taxonomy_id` = $wpdb->term_taxonomy.`term_taxonomy_id`)
+			LEFT JOIN $wpdb->postmeta as thumb ON (thumb.`meta_key` = '_wp_attached_file')
+
 			INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
 			WHERE $wpdb->posts.`post_status` = 'publish' 
 			and $wpdb->posts.`post_type` = 'post'

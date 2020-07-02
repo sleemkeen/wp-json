@@ -17,34 +17,34 @@ add_action( 'rest_api_init', 'my_register_route' );
 
 
 function my_register_route() {
-	register_rest_route( 'converter-api', 'posts', array(
-		'methods' => 'GET',
-		'callback' => 'posts',
-	)
+    register_rest_route( 'converter-api', 'posts', array(
+        'methods' => 'GET',
+        'callback' => 'posts',
+    )
 );
 
-	register_rest_route( 'converter-api', 'posts/page=(?P<id>\d+)', array(
-		'methods' => 'GET',
-		'callback' => 'postsWithPagination',
-	)
+    register_rest_route( 'converter-api', 'posts/page=(?P<id>\d+)', array(
+        'methods' => 'GET',
+        'callback' => 'postsWithPagination',
+    )
 );
 
 
-	register_rest_route( 'converter-api', 'posts/(?P<id>\d+)', array(
-		'methods' => 'GET',
-		'callback' => 'singlePost',
-	)
+    register_rest_route( 'converter-api', 'posts/(?P<id>\d+)', array(
+        'methods' => 'GET',
+        'callback' => 'singlePost',
+    )
 );
 
-	register_rest_route( 'converter-api', 'connect', array(
-		'methods' => 'GET',
-		'callback' => 'connect',
-	) );
+    register_rest_route( 'converter-api', 'connect', array(
+        'methods' => 'GET',
+        'callback' => 'connect',
+    ) );
 
-	register_rest_route( 'converter-api', 'category/cat=(?P<id>\d+)', array(
-		'methods' => 'GET',
-		'callback' => 'category',
-	) );
+    register_rest_route( 'converter-api', 'category/cat=(?P<id>\d+)', array(
+        'methods' => 'GET',
+        'callback' => 'category',
+    ) );
 
 
 }
@@ -53,230 +53,224 @@ function my_register_route() {
 
 function connect() {
 
-	return rest_ensure_response(['status'=> 200, 'message' => 'Plugin installed successfully']);
+    return rest_ensure_response(['status'=> 200, 'message' => 'Plugin installed successfully']);
 }
 
 
 function singlePost($data){
-	global $wpdb;
+    global $wpdb;
 
-	$postId = $data['id'];
-
-	$category = [];
-
-	$feturedimg = [];
-
-	$res = [];
-
-	$relatedPost = [];
-
-	$author = [];
-
-	$count_pages = wp_count_posts( $post_type = 'post' );
-
-	$uploadDir = wp_upload_dir();
-	$uploadDir = $uploadDir['baseurl'];
-	
-	$sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
-	FROM $wpdb->posts
-	INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
-	WHERE $wpdb->posts.`ID` = $postId
-	ORDER BY $wpdb->posts.`ID` DESC limit 1 ";
-
-	
-	$posts = $wpdb->get_results($sql);
-
-	foreach ($posts as $i => $v) {
-
-		$catId = get_the_category( $v->id )[0]->cat_ID;
+    $postId = $data['id'];
 
 
-		$CatSql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`, CONCAT('$uploadDir',`meta_value`) as image
+    $feturedRelatedimg = [];
+
+    $res = [];
+
+    $relatedPost = [];
+
+    $author = [];
+
+    
+    $sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
+    FROM $wpdb->posts
+    INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
+    WHERE $wpdb->posts.`ID` = $postId
+    ORDER BY $wpdb->posts.`ID` DESC limit 1 ";
+
+    
+    $posts = $wpdb->get_results($sql);
+
+    $v = $posts[0];
+
+    $catId = get_the_category( $v->id )[0]->cat_ID;
+    $category = get_the_category( $v->id )[0]->name;
+    $feturedimg = wp_get_attachment_url( get_post_thumbnail_id($v->id) );
 
 
-			FROM $wpdb->posts
-			LEFT JOIN $wpdb->term_relationships ON($wpdb->posts.`ID` = $wpdb->term_relationships.`object_id`)
-			LEFT JOIN $wpdb->term_taxonomy ON($wpdb->term_relationships.`term_taxonomy_id` = $wpdb->term_taxonomy.`term_taxonomy_id`)
-			LEFT JOIN $wpdb->postmeta as thumb ON (thumb.`meta_key` = '_wp_attached_file')
+    $CatSql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
 
-			INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
-			WHERE $wpdb->posts.`post_status` = 'publish' 
-			and $wpdb->posts.`post_type` = 'post'
-			AND $wpdb->term_taxonomy.`taxonomy` = 'category'
-			AND $wpdb->term_taxonomy.`term_id` = $catId
-			ORDER BY $wpdb->posts.`ID` DESC limit 10 ";
+            FROM $wpdb->posts
+            LEFT JOIN $wpdb->term_relationships ON($wpdb->posts.`ID` = $wpdb->term_relationships.`object_id`)
+            LEFT JOIN $wpdb->term_taxonomy ON($wpdb->term_relationships.`term_taxonomy_id` = $wpdb->term_taxonomy.`term_taxonomy_id`)
+            INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
+            WHERE $wpdb->posts.`post_status` = 'publish'
+            and $wpdb->posts.`post_type` = 'post'
+            AND $wpdb->term_taxonomy.`taxonomy` = 'category'
+            AND $wpdb->term_taxonomy.`term_id` = $catId
+            ORDER BY $wpdb->posts.`ID` DESC limit 10 ";
+            
+        $postRelated = $wpdb->get_results($CatSql);
 
-			
-		$postRelated = $wpdb->get_results($CatSql);
+        foreach ($postRelated as $index => $r) {
+
+            array_push($feturedRelatedimg, wp_get_attachment_url( get_post_thumbnail_id($r->id) ));
+
+            $postRelated[$index] = array_merge( ['image' => $feturedRelatedimg[$index], 'posts' => $r ]);
+                
+        }
 
 
+    $response = array_merge(['relatedPost' => $postRelated],['category' => $category], ['posts' => $v], ['image' => $feturedimg,
+    ]);
 
-		array_push($posts, $v);
-		array_push($category, get_the_category( $v->id )[0]->name );
-		array_push($feturedimg, wp_get_attachment_url( get_post_thumbnail_id($v->id) ));
-		
+    
 
-
-
-		$res[$i] = array_merge(['relatedPost' => $postRelated],['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i], 
-	]);
-
-	}
-
-	return rest_ensure_response($res);
+    return rest_ensure_response($response);
 
 }
 
 function category($data) {
 
-	global $wpdb;
+    global $wpdb;
 
-	$c = $wpdb->prefix;
+    $c = $wpdb->prefix;
 
-	$catID = $data['id'];
+    $catID = $data['id'];
 
-	$category = [];
+    $category = [];
 
-	$feturedimg = [];
+    $feturedimg = [];
 
-	$res = [];
+    $res = [];
 
-	$author = [];
+    $author = [];
 
-	$count_pages = wp_count_posts( $post_type = 'post' );
-	
-	$sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
-	FROM $wpdb->posts
-	LEFT JOIN wp_term_relationships ON($wpdb->posts.`ID` = $wpdb->term_relationships.`object_id`)
-	LEFT JOIN wp_term_taxonomy ON($wpdb->term_relationships.`term_taxonomy_id` = $wpdb->term_taxonomy.`term_taxonomy_id`)
-	INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
-	WHERE $wpdb->posts.`post_status` = 'publish' 
-	and $wpdb->posts.`post_type` = 'post'
-	AND $wpdb->term_taxonomy.`taxonomy` = 'category'
-	AND $wpdb->term_taxonomy.`term_id` = $catID
-	ORDER BY $wpdb->posts.`ID` DESC limit 10 ";
+    $count_pages = wp_count_posts( $post_type = 'post' );
+    
+    $sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
+    FROM $wpdb->posts
+    LEFT JOIN wp_term_relationships ON($wpdb->posts.`ID` = $wpdb->term_relationships.`object_id`)
+    LEFT JOIN wp_term_taxonomy ON($wpdb->term_relationships.`term_taxonomy_id` = $wpdb->term_taxonomy.`term_taxonomy_id`)
+    INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
+    WHERE $wpdb->posts.`post_status` = 'publish'
+    and $wpdb->posts.`post_type` = 'post'
+    AND $wpdb->term_taxonomy.`taxonomy` = 'category'
+    AND $wpdb->term_taxonomy.`term_id` = $catID
+    ORDER BY $wpdb->posts.`ID` DESC limit 10 ";
 
-	
-	$posts = $wpdb->get_results($sql);
+    
+    $posts = $wpdb->get_results($sql);
 
-	foreach ($posts as $i => $v) {
+    foreach ($posts as $i => $v) {
 
-		array_push($posts, $v);
-		array_push($category, get_the_category( $v->id )[0]->name );
-		array_push($feturedimg, wp_get_attachment_url( get_post_thumbnail_id($v->id) ));
-
-
-		$res[$i] = array_merge(['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i], 
-	]);
+        array_push($posts, $v);
+        array_push($category, get_the_category( $v->id )[0]->name );
+        array_push($feturedimg, wp_get_attachment_url( get_post_thumbnail_id($v->id) ));
 
 
-	}
+        $res[$i] = array_merge(['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i],
+    ]);
 
 
-	return rest_ensure_response($res);
+    }
+
+
+    return rest_ensure_response($res);
 
 }
 
 
 function posts() {
 
-	global $wpdb;
+    global $wpdb;
 
-	$c = $wpdb->prefix;
-
-
-	$category = [];
-
-	$feturedimg = [];
-
-	$res = [];
-
-	$author = [];
-
-	$count_pages = wp_count_posts( $post_type = 'post' );
-	
-	$sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
-	FROM $wpdb->posts
-	INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
-	WHERE $wpdb->posts.`post_status` = 'publish' and $wpdb->posts.`post_type` = 'post'
-	ORDER BY $wpdb->posts.`ID` DESC limit 10 ";
-
-	
-	$posts = $wpdb->get_results($sql);
-
-	foreach ($posts as $i => $v) {
-
-		array_push($posts, $v);
-		array_push($category, get_the_category( $v->id )[0]->name );
-		array_push($feturedimg, wp_get_attachment_url( get_post_thumbnail_id($v->id) ));
+    $c = $wpdb->prefix;
 
 
-		$res[$i] = array_merge(['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i], 
-	]);
+    $category = [];
+
+    $feturedimg = [];
+
+    $res = [];
+
+    $author = [];
+
+    $count_pages = wp_count_posts( $post_type = 'post' );
+    
+    $sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
+    FROM $wpdb->posts
+    INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
+    WHERE $wpdb->posts.`post_status` = 'publish' and $wpdb->posts.`post_type` = 'post'
+    ORDER BY $wpdb->posts.`ID` DESC limit 10 ";
+
+    
+    $posts = $wpdb->get_results($sql);
+
+    foreach ($posts as $i => $v) {
+
+        array_push($posts, $v);
+        array_push($category, get_the_category( $v->id )[0]->name );
+        array_push($feturedimg, wp_get_attachment_url( get_post_thumbnail_id($v->id) ));
 
 
-	}
+        $res[$i] = array_merge(['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i],
+    ]);
 
 
-	return rest_ensure_response($res);
+    }
+
+
+    return rest_ensure_response($res);
 }
 
 function postsWithPagination($data) {
 
 
-	global $wpdb;
+    global $wpdb;
 
-	$pageID = $data['id'];
+    $pageID = $data['id'];
 
-	if($pageID < 1){
-		$pageID = 1;
-	}
+    if($pageID < 1){
+        $pageID = 1;
+    }
 
-	$offset = $pageID * 25;
-
-
-
-	$c = $wpdb->prefix;
+    $offset = $pageID * 25;
 
 
-	$category = [];
 
-	$feturedimg = [];
-
-	$res = [];
-
-	$author = [];
-
-	$count_pages = wp_count_posts( $post_type = 'post' );
-	
-	$sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
-	FROM $wpdb->posts
-	INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
-	WHERE $wpdb->posts.`post_status` = 'publish' and $wpdb->posts.`post_type` = 'post'
-	ORDER BY $wpdb->posts.`ID` DESC limit 10 OFFSET $offset";
-
-	
-	$posts = $wpdb->get_results($sql);
-
-	foreach ($posts as $i => $v) {
-
-		array_push($posts, $v);
-		array_push($category, get_the_category( $v->id )[0]->name );
-		array_push($feturedimg, wp_get_attachment_url( get_post_thumbnail_id($v->id) ));
+    $c = $wpdb->prefix;
 
 
-		$res[$i] = array_merge(['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i], 
-	]);
+    $category = [];
+
+    $feturedimg = [];
+
+    $res = [];
+
+    $author = [];
+
+    $count_pages = wp_count_posts( $post_type = 'post' );
+    
+    $sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
+    FROM $wpdb->posts
+    INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
+    WHERE $wpdb->posts.`post_status` = 'publish' and $wpdb->posts.`post_type` = 'post'
+    ORDER BY $wpdb->posts.`ID` DESC limit 10 OFFSET $offset";
+
+    
+    $posts = $wpdb->get_results($sql);
+
+    foreach ($posts as $i => $v) {
+
+        array_push($posts, $v);
+        array_push($category, get_the_category( $v->id )[0]->name );
+        array_push($feturedimg, wp_get_attachment_url( get_post_thumbnail_id($v->id) ));
 
 
-	}
+        $res[$i] = array_merge(['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i],
+    ]);
 
 
-	return rest_ensure_response($res);
+    }
 
-	
+
+    return rest_ensure_response($res);
+
+    
 }
 
 
 ?>
+
 

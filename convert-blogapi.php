@@ -35,6 +35,13 @@ register_rest_route( 'converter-api', 'posts/(?P<id>\d+)', array(
     )
 );
 
+
+register_rest_route( 'converter-api', 'search/(?P<id>[a-zA-Z0-9-]|[^ ]+)', array(
+        'methods' => 'GET',
+        'callback' => 'searchPost',
+    )
+);
+
 register_rest_route( 'converter-api', 'relatedposts/(?P<id>\d+)', array(
         'methods' => 'GET',
         'callback' => 'relatedPosts',
@@ -51,10 +58,7 @@ register_rest_route( 'converter-api', 'category/cat=(?P<id>\d+)', array(
         'callback' => 'category',
 ) );
 
-
 }
-
-
 
 function connect() {
 
@@ -62,18 +66,53 @@ function connect() {
 }
 
 
-function singlePost($data){
+function searchPost($data){
     global $wpdb;
+    
+    $title = trim(urldecode($data['id']));
 
-    $postId = $data['id'];
+    $category = [];
 
-
-    $feturedRelatedimg = [];
+    $feturedimg = [];
 
     $res = [];
 
-    $relatedPost = [];
+    $author = [];
 
+    $count_pages = wp_count_posts( $post_type = 'post' );
+    
+    $sql = $wpdb->prepare("SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
+    FROM $wpdb->posts
+    INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
+    WHERE $wpdb->posts.`post_status` = 'publish' and $wpdb->posts.`post_type` = 'post'
+    and post_title LIKE '%s'
+    ORDER BY $wpdb->posts.`ID` DESC limit 10 ", '%%'. $wpdb->esc_like( $title ) .'%%');
+
+    $posts = $wpdb->get_results($sql);
+
+    foreach ($posts as $i => $v) {
+
+        array_push($posts, $v);
+        array_push($category, get_the_category( $v->id )[0]->name );
+        array_push($feturedimg, wp_get_attachment_url( get_post_thumbnail_id($v->id) ));
+
+
+        $res[$i] = array_merge(['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i], 
+    ]);
+
+    }
+
+    return rest_ensure_response($res);
+}
+
+
+function singlePost($data){
+    global $wpdb;
+    
+    $postId = $data['id'];
+    $feturedRelatedimg = [];
+    $res = [];
+    $relatedPost = [];
     $author = [];
 
     
@@ -92,11 +131,7 @@ function singlePost($data){
     $category = get_the_category( $v->id )[0]->name;
     $feturedimg = wp_get_attachment_url( get_post_thumbnail_id($v->id) );
 
-
-
     $response = array_merge(['category' => $category], ['posts' => $v], ['image' => $feturedimg]);
-
-    
 
     return rest_ensure_response($response);
 
@@ -110,8 +145,6 @@ function relatedPosts($data){
 
     $feturedRelatedimg =[];
 
-
-
     $sql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
     FROM $wpdb->posts
     INNER JOIN $wpdb->users ON `post_author` = wp_users.`id`
@@ -121,7 +154,6 @@ function relatedPosts($data){
     $posts = $wpdb->get_results($sql);
     $v = $posts[0];
     $catId = get_the_category( $v->id )[0]->cat_ID;
-
 
     $CatSql = "SELECT $wpdb->posts.ID as id, `post_title` as `title`, `post_content` as `content`,`post_date` as `date`,`comment_count`,`display_name` as `author`
 
@@ -143,13 +175,8 @@ function relatedPosts($data){
         array_push($feturedRelatedimg, wp_get_attachment_url( get_post_thumbnail_id($r->id) ));
         
         $postRelated[$index] = array_merge( ['image' => $feturedRelatedimg[$index], 'posts' => $r, 'category' => get_the_category( $r->id )[0]->name]);
-        
             
     }
-
-
-
-    
 
     return rest_ensure_response($postRelated);
 
@@ -242,9 +269,7 @@ function posts() {
         $res[$i] = array_merge(['category' => $category[$i]], ['posts' => $v], ['image' => $feturedimg[$i], 
     ]);
 
-
     }
-
 
     return rest_ensure_response($res);
 }
